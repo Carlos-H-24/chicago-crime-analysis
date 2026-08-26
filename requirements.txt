@@ -103,6 +103,7 @@ rpds-py==2026.6.3
 scikit-learn==1.9.0
 scipy==1.18.1
 seaborn==0.13.2
+statsmodels>=0.14
 Send2Trash==2.1.0
 six==1.17.0
 soupsieve==2.9.2
