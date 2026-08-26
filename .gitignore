@@ -1,5 +1,6 @@
-# Data (déjà hébergé séparément)
+# Data & models (hébergés séparément, trop volumineux pour Git)
 data/
+models/
 
 # Environnements virtuels
 venv/
