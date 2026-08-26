@@ -22,14 +22,14 @@
 
 ## Analyses exploratoires réalisées
 
-| Section | Description |
-|---------|-------------|
-| **Portrait de la ville** | Top crimes, évolution 2001–2025 |
-| **Saisonnalité** | Juillet–Août = +30% de crimes vs Février |
-| **Température vs crimes** | Corrélation validée — seuil critique à 5°C |
-| **Pluie comme bouclier** | -6% de crimes les jours pluvieux |
-| **Inégalités** | Quartiers défavorisés : 2× plus de crimes par grande chaleur |
-| **Comparaison littérature** | Validation vs Ranson (2014) |
+| Section                     | Description                                                  |
+| --------------------------- | ------------------------------------------------------------ |
+| **Portrait de la ville**    | Top crimes, évolution 2001–2025                              |
+| **Saisonnalité**            | Juillet–Août = +30% de crimes vs Février                     |
+| **Température vs crimes**   | Corrélation validée — seuil critique à 5°C                   |
+| **Pluie comme bouclier**    | -6% de crimes les jours pluvieux                             |
+| **Inégalités**              | Quartiers défavorisés : 2× plus de crimes par grande chaleur |
+| **Comparaison littérature** | Validation vs Ranson (2014)                                  |
 
 ---
 
@@ -37,11 +37,11 @@
 
 **Objectif :** prédire si un crime donné aboutira à une arrestation (`Arrest`), à partir du type de crime, du moment, du lieu et du contexte météo/socio-économique.
 
-| Modèle | Accuracy | Précision (Arrestation) | Rappel (Arrestation) |
-|---|---|---|---|
-| Dummy (classe majoritaire) | 74.9% | — | — |
-| Random Forest | 86.8% | 0.93 | 0.51 |
-| Random Forest (`class_weight="balanced"`) | 85.0% | 0.74 | **0.61** |
+| Modèle                                    | Accuracy | Précision (Arrestation) | Rappel (Arrestation) |
+| ----------------------------------------- | -------- | ----------------------- | -------------------- |
+| Dummy (classe majoritaire)                | 74.9%    | —                       | —                    |
+| Random Forest                             | 86.8%    | 0.93                    | 0.51                 |
+| Random Forest (`class_weight="balanced"`) | 85.0%    | 0.74                    | **0.61**             |
 
 **Résultat clé :** le type de crime (`Primary Type`) domine très largement l'importance des variables (≈70%), loin devant l'heure, la météo ou le profil socio-économique du quartier (chacun entre 2 et 6%). Le modèle final retenu privilégie le rappel (`class_weight="balanced"`) — un choix assumé pour limiter les arrestations manquées, au prix de plus de faux positifs. Le détail du compromis précision/rappel est discuté dans le notebook.
 
@@ -50,19 +50,20 @@
 ## Dashboard interactif
 
 Une application Streamlit à trois onglets :
+
 - **Predict** — estime la probabilité d'arrestation pour un incident fictif (type de crime, heure, météo, quartier)
 - **City Insights** — visualisations clés de l'analyse (top crimes, taux d'arrestation par type, pattern horaire/mensuel, effet température, effet socio-économique par quartier)
 - **About** — contexte du projet, sources de données, limites
 
 ### Exemples à tester (onglet Predict)
 
-| Scénario | Type de crime | Heure | Remarque |
-|---|---|---|---|
-| Arrestation quasi automatique | NARCOTICS | 22h | Possession souvent constatée sur le fait |
-| Rarement élucidé sur le moment | THEFT | 15h | Découvert après coup, pas de suspect immédiat |
-| Crime violent, arrestation attendue | WEAPONS VIOLATION | 2h | Comparer nuit vs jour |
-| Isoler l'effet météo | BATTERY | 14h | Comparer -20°C vs 35°C, tout le reste identique |
-| Isoler l'effet du quartier | THEFT | 15h | Comparer un quartier à Hardship Index élevé vs faible |
+| Scénario                            | Type de crime     | Heure | Remarque                                              |
+| ----------------------------------- | ----------------- | ----- | ----------------------------------------------------- |
+| Arrestation quasi automatique       | NARCOTICS         | 22h   | Possession souvent constatée sur le fait              |
+| Rarement élucidé sur le moment      | THEFT             | 15h   | Découvert après coup, pas de suspect immédiat         |
+| Crime violent, arrestation attendue | WEAPONS VIOLATION | 2h    | Comparer nuit vs jour                                 |
+| Isoler l'effet météo                | BATTERY           | 14h   | Comparer -20°C vs 35°C, tout le reste identique       |
+| Isoler l'effet du quartier          | THEFT             | 15h   | Comparer un quartier à Hardship Index élevé vs faible |
 
 **Conseil :** compare les probabilités relatives entre ces scénarios plutôt que de lire chacun isolément — c'est cette cohérence relative qui révèle si le modèle a appris quelque chose de sensé.
 
@@ -98,6 +99,17 @@ Une application Streamlit à trois onglets :
 
 ---
 
+## Données et modèles
+
+Les fichiers de données (500k+ lignes) et le modèle entraîné dépassent la limite de taille de GitLab et sont hébergés séparément sur Hugging Face Hub :
+
+- **Données** : [CarLosAKD/chicago-crime-weather-data](https://huggingface.co/datasets/CarLosAKD/chicago-crime-weather-data)
+- **Modèle** : [CarLosAKD/chicago-crime-weather-models](https://huggingface.co/CarLosAKD/chicago-crime-weather-models)
+
+`app.py` les télécharge automatiquement au premier lancement (mis en cache localement ensuite). Pour utiliser le notebook directement, télécharge les 3 fichiers CSV depuis le dataset ci-dessus et place-les dans un dossier `data/` à la racine du projet.
+
+---
+
 ## Installation
 
 ```bash
@@ -128,5 +140,6 @@ streamlit run app.py
 ## Auteur
 
 **AKODJENOU Hervé Carlos**
+
 - GitLab : [Carlos-H-24](https://gitlab.com/Carlos-H-24)
 - Email : carlosakodjenou@gmail.com

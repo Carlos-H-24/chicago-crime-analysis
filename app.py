@@ -2,7 +2,31 @@ import streamlit as st
 import joblib
 import pandas as pd
 import numpy as np
+import os
+import requests
 
+# --- Auto-download data & model files from Hugging Face Hub if not present locally ---
+REMOTE_FILES = {
+    "data/chicago_crimes_500k.csv": "https://huggingface.co/datasets/CarLosAKD/chicago-crime-weather-data/resolve/main/chicago_crimes_500k.csv",
+    "data/chicago_weather.csv": "https://huggingface.co/datasets/CarLosAKD/chicago-crime-weather-data/resolve/main/chicago_weather.csv",
+    "data/Census_Data_Chicago.csv": "https://huggingface.co/datasets/CarLosAKD/chicago-crime-weather-data/resolve/main/Census_Data_Chicago.csv",
+    "models/model_arrest_rf.pkl": "https://huggingface.co/CarLosAKD/chicago-crime-weather-models/resolve/main/model_arrest_rf.pkl",
+    "models/encoder_crime_type.pkl": "https://huggingface.co/CarLosAKD/chicago-crime-weather-models/resolve/main/encoder_crime_type.pkl",
+}
+
+
+def ensure_files_downloaded():
+    for local_path, url in REMOTE_FILES.items():
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+        if not os.path.exists(local_path):
+            with st.spinner(f"Downloading {os.path.basename(local_path)}..."):
+                response = requests.get(url, timeout=120)
+                response.raise_for_status()
+                with open(local_path, "wb") as f:
+                    f.write(response.content)
+
+
+ensure_files_downloaded()
 # --- Page configuration ---
 st.set_page_config(
     page_title="Chicago Crime Analytics",
@@ -299,26 +323,51 @@ with tab_insights:
         st.markdown("**Top 10 crime types**")
         top_crimes = df["Primary Type"].value_counts().head(10).reset_index()
         top_crimes.columns = ["Crime type", "Count"]
-        fig1 = px.bar(top_crimes, x="Count", y="Crime type", orientation="h",
-                      color="Count", color_continuous_scale="Blues")
-        fig1.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False,
-                            template="plotly_dark", coloraxis_showscale=False,
-                            height=400, margin=dict(l=0, r=0, t=10, b=0))
+        fig1 = px.bar(
+            top_crimes,
+            x="Count",
+            y="Crime type",
+            orientation="h",
+            color="Count",
+            color_continuous_scale="Blues",
+        )
+        fig1.update_layout(
+            yaxis={"categoryorder": "total ascending"},
+            showlegend=False,
+            template="plotly_dark",
+            coloraxis_showscale=False,
+            height=400,
+            margin=dict(l=0, r=0, t=10, b=0),
+        )
         st.plotly_chart(fig1, use_container_width=True)
 
     with col_b:
         st.markdown("**Arrest rate by crime type** (top 10 by volume)")
         arrest_by_type = (
             df[df["Primary Type"].isin(top_crimes["Crime type"])]
-            .groupby("Primary Type")["Arrest"].mean().sort_values(ascending=False).reset_index()
+            .groupby("Primary Type")["Arrest"]
+            .mean()
+            .sort_values(ascending=False)
+            .reset_index()
         )
         arrest_by_type.columns = ["Crime type", "Arrest rate"]
-        fig2 = px.bar(arrest_by_type, x="Arrest rate", y="Crime type", orientation="h",
-                      color="Arrest rate", color_continuous_scale="Purples")
-        fig2.update_layout(yaxis={"categoryorder": "total ascending"}, showlegend=False,
-                            template="plotly_dark", coloraxis_showscale=False,
-                            height=400, margin=dict(l=0, r=0, t=10, b=0),
-                            xaxis_tickformat=".0%")
+        fig2 = px.bar(
+            arrest_by_type,
+            x="Arrest rate",
+            y="Crime type",
+            orientation="h",
+            color="Arrest rate",
+            color_continuous_scale="Purples",
+        )
+        fig2.update_layout(
+            yaxis={"categoryorder": "total ascending"},
+            showlegend=False,
+            template="plotly_dark",
+            coloraxis_showscale=False,
+            height=400,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis_tickformat=".0%",
+        )
         st.plotly_chart(fig2, use_container_width=True)
 
     st.divider()
@@ -327,9 +376,15 @@ with tab_insights:
     st.markdown("**Crime volume by hour and month**")
     heatmap_data = df.groupby(["hour", "month"]).size().reset_index(name="count")
     heatmap_pivot = heatmap_data.pivot(index="hour", columns="month", values="count")
-    fig3 = px.imshow(heatmap_pivot, color_continuous_scale="Blues", aspect="auto",
-                      labels=dict(x="Month", y="Hour", color="Incidents"))
-    fig3.update_layout(template="plotly_dark", height=350, margin=dict(l=0, r=0, t=10, b=0))
+    fig3 = px.imshow(
+        heatmap_pivot,
+        color_continuous_scale="Blues",
+        aspect="auto",
+        labels=dict(x="Month", y="Hour", color="Incidents"),
+    )
+    fig3.update_layout(
+        template="plotly_dark", height=350, margin=dict(l=0, r=0, t=10, b=0)
+    )
     st.plotly_chart(fig3, use_container_width=True)
 
     st.divider()
@@ -341,32 +396,59 @@ with tab_insights:
         st.markdown("**Crimes by temperature range**")
         bins = list(range(-25, 41, 5))
         labels = [f"{b}–{b+5}°C" for b in bins[:-1]]
-        daily = df.groupby("date_only").agg(
-            nb_crimes=("Primary Type", "count"),
-            temp=("temperature_2m_mean (°C)", "mean"),
-        ).dropna()
+        daily = (
+            df.groupby("date_only")
+            .agg(
+                nb_crimes=("Primary Type", "count"),
+                temp=("temperature_2m_mean (°C)", "mean"),
+            )
+            .dropna()
+        )
         daily["tranche"] = pd.cut(daily["temp"], bins=bins, labels=labels)
-        temp_effect = daily.groupby("tranche", observed=True)["nb_crimes"].mean().reset_index()
+        temp_effect = (
+            daily.groupby("tranche", observed=True)["nb_crimes"].mean().reset_index()
+        )
         fig4 = px.line(temp_effect, x="tranche", y="nb_crimes", markers=True)
-        fig4.update_layout(template="plotly_dark", height=350, margin=dict(l=0, r=0, t=10, b=0),
-                            xaxis_title="Temperature range", yaxis_title="Avg. crimes/day")
+        fig4.update_layout(
+            template="plotly_dark",
+            height=350,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis_title="Temperature range",
+            yaxis_title="Avg. crimes/day",
+        )
         st.plotly_chart(fig4, use_container_width=True)
 
     with col_d:
         st.markdown("**Hardship Index vs. daily crime volume** (by neighborhood)")
-        by_neighborhood = df.groupby("COMMUNITY AREA NAME").agg(
-            nb_crimes=("Primary Type", "count"),
-            hardship=("HARDSHIP INDEX", "first"),
-        ).dropna().reset_index()
-        fig5 = px.scatter(by_neighborhood, x="hardship", y="nb_crimes",
-                           hover_name="COMMUNITY AREA NAME",
-                           trendline="ols", color_discrete_sequence=["#a78bfa"])
-        fig5.update_layout(template="plotly_dark", height=350, margin=dict(l=0, r=0, t=10, b=0),
-                            xaxis_title="Hardship Index", yaxis_title="Total crimes (2001–2025)")
+        by_neighborhood = (
+            df.groupby("COMMUNITY AREA NAME")
+            .agg(
+                nb_crimes=("Primary Type", "count"),
+                hardship=("HARDSHIP INDEX", "first"),
+            )
+            .dropna()
+            .reset_index()
+        )
+        fig5 = px.scatter(
+            by_neighborhood,
+            x="hardship",
+            y="nb_crimes",
+            hover_name="COMMUNITY AREA NAME",
+            trendline="ols",
+            color_discrete_sequence=["#a78bfa"],
+        )
+        fig5.update_layout(
+            template="plotly_dark",
+            height=350,
+            margin=dict(l=0, r=0, t=10, b=0),
+            xaxis_title="Hardship Index",
+            yaxis_title="Total crimes (2001–2025)",
+        )
         st.plotly_chart(fig5, use_container_width=True)
 
 with tab_about:
-    st.markdown("""
+    st.markdown(
+        """
     ### About this project
 
     This dashboard is built on 500,000+ Chicago crime reports (2001–2025), combined with
@@ -389,18 +471,46 @@ with tab_about:
     - The model reflects patterns in *reported and recorded* crimes, not actual crime rates
     - Socioeconomic and arrest data can reflect systemic biases in policing, not just crime severity
     - Sample of 500,000 rows out of a much larger full dataset
-    """)
+    """
+    )
 
     st.divider()
     st.markdown("### Try it yourself — example scenarios for the Predict tab")
 
-    scenarios = pd.DataFrame([
-        {"Scenario": "Near-automatic arrest", "Crime type": "NARCOTICS", "Hour": 22, "Notes": "Possession is often caught in the act"},
-        {"Scenario": "Rarely solved on the spot", "Crime type": "THEFT", "Hour": 15, "Notes": "Usually discovered after the fact, no immediate suspect"},
-        {"Scenario": "Violent crime, high arrest expectation", "Crime type": "WEAPONS VIOLATION", "Hour": 2, "Notes": "Test at night vs. daytime"},
-        {"Scenario": "Isolating the weather effect", "Crime type": "BATTERY", "Hour": 14, "Notes": "Compare -20°C vs 35°C, everything else fixed"},
-        {"Scenario": "Isolating the neighborhood effect", "Crime type": "THEFT", "Hour": 15, "Notes": "Compare a high-Hardship-Index vs. low-Hardship-Index neighborhood"},
-    ])
+    scenarios = pd.DataFrame(
+        [
+            {
+                "Scenario": "Near-automatic arrest",
+                "Crime type": "NARCOTICS",
+                "Hour": 22,
+                "Notes": "Possession is often caught in the act",
+            },
+            {
+                "Scenario": "Rarely solved on the spot",
+                "Crime type": "THEFT",
+                "Hour": 15,
+                "Notes": "Usually discovered after the fact, no immediate suspect",
+            },
+            {
+                "Scenario": "Violent crime, high arrest expectation",
+                "Crime type": "WEAPONS VIOLATION",
+                "Hour": 2,
+                "Notes": "Test at night vs. daytime",
+            },
+            {
+                "Scenario": "Isolating the weather effect",
+                "Crime type": "BATTERY",
+                "Hour": 14,
+                "Notes": "Compare -20°C vs 35°C, everything else fixed",
+            },
+            {
+                "Scenario": "Isolating the neighborhood effect",
+                "Crime type": "THEFT",
+                "Hour": 15,
+                "Notes": "Compare a high-Hardship-Index vs. low-Hardship-Index neighborhood",
+            },
+        ]
+    )
 
     st.dataframe(scenarios, hide_index=True, use_container_width=True)
 
