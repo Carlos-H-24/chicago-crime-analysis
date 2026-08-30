@@ -141,5 +141,5 @@ streamlit run app.py
 
 **AKODJENOU Hervé Carlos**
 
-- GitLab : [Carlos-H-24](https://gitlab.com/Carlos-H-24)
+- GitLab : [Carlos.exe](https://gitlab.com/Carlos-H-24)
 - Email : carlosakodjenou@gmail.com
