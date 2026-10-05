@@ -1,9 +1,18 @@
-import streamlit as st
-import joblib
-import pandas as pd
-import numpy as np
 import os
+
+import joblib
+import numpy as np
+import pandas as pd
 import requests
+import streamlit as st
+
+# --- Page configuration (must be the FIRST Streamlit command) ---
+st.set_page_config(
+    page_title="Chicago Crime Analytics",
+    page_icon=":material/local_police:",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 # --- Auto-download data & model files from Hugging Face Hub if not present locally ---
 REMOTE_FILES = {
@@ -20,20 +29,16 @@ def ensure_files_downloaded():
         os.makedirs(os.path.dirname(local_path), exist_ok=True)
         if not os.path.exists(local_path):
             with st.spinner(f"Downloading {os.path.basename(local_path)}..."):
-                response = requests.get(url, timeout=120)
-                response.raise_for_status()
-                with open(local_path, "wb") as f:
-                    f.write(response.content)
+                tmp_path = local_path + ".part"
+                with requests.get(url, timeout=120, stream=True) as r:
+                    r.raise_for_status()
+                    with open(tmp_path, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=1024 * 1024):
+                            f.write(chunk)
+                os.replace(tmp_path, local_path)
 
 
 ensure_files_downloaded()
-# --- Page configuration ---
-st.set_page_config(
-    page_title="Chicago Crime Analytics",
-    page_icon=":material/local_police:",
-    layout="wide",
-    initial_sidebar_state="collapsed",
-)
 
 # --- Custom CSS ---
 st.markdown(
@@ -101,8 +106,6 @@ model, le_crime_type = load_artifacts()
 @st.cache_data
 def load_data():
     # Crimes
-    df_crime = pd.read_csv("data/chicago_crimes_500k.csv", low_memory=False)
-    df_crime["Date"] = pd.to_datetime(df_crime["Date"], errors="coerce")
     cols_crime = [
         "Date",
         "Primary Type",
@@ -112,7 +115,10 @@ def load_data():
         "Latitude",
         "Longitude",
     ]
-    df_crime = df_crime[cols_crime].copy()
+    df_crime = pd.read_csv(
+        "data/chicago_crimes_500k.csv", usecols=cols_crime, low_memory=False
+    )
+    df_crime["Date"] = pd.to_datetime(df_crime["Date"], errors="coerce")
     df_crime = df_crime.drop_duplicates()
 
     df_crime["year"] = df_crime["Date"].dt.year
@@ -222,7 +228,7 @@ with tab_predict:
         predict_btn = st.button(
             "Predict arrest likelihood",
             icon=":material/gavel:",
-            use_container_width=True,
+            width="stretch",
         )
 
     with col_result:
@@ -339,7 +345,7 @@ with tab_insights:
             height=400,
             margin=dict(l=0, r=0, t=10, b=0),
         )
-        st.plotly_chart(fig1, use_container_width=True)
+        st.plotly_chart(fig1, width="stretch")
 
     with col_b:
         st.markdown("**Arrest rate by crime type** (top 10 by volume)")
@@ -368,7 +374,7 @@ with tab_insights:
             margin=dict(l=0, r=0, t=10, b=0),
             xaxis_tickformat=".0%",
         )
-        st.plotly_chart(fig2, use_container_width=True)
+        st.plotly_chart(fig2, width="stretch")
 
     st.divider()
 
@@ -385,7 +391,7 @@ with tab_insights:
     fig3.update_layout(
         template="plotly_dark", height=350, margin=dict(l=0, r=0, t=10, b=0)
     )
-    st.plotly_chart(fig3, use_container_width=True)
+    st.plotly_chart(fig3, width="stretch")
 
     st.divider()
 
@@ -416,7 +422,7 @@ with tab_insights:
             xaxis_title="Temperature range",
             yaxis_title="Avg. crimes/day",
         )
-        st.plotly_chart(fig4, use_container_width=True)
+        st.plotly_chart(fig4, width="stretch")
 
     with col_d:
         st.markdown("**Hardship Index vs. daily crime volume** (by neighborhood)")
@@ -444,7 +450,7 @@ with tab_insights:
             xaxis_title="Hardship Index",
             yaxis_title="Total crimes (2001–2025)",
         )
-        st.plotly_chart(fig5, use_container_width=True)
+        st.plotly_chart(fig5, width="stretch")
 
 with tab_about:
     st.markdown(
@@ -512,7 +518,7 @@ with tab_about:
         ]
     )
 
-    st.dataframe(scenarios, hide_index=True, use_container_width=True)
+    st.dataframe(scenarios, hide_index=True, width="stretch")
 
     st.caption(
         "Tip: compare the predicted probabilities across these scenarios rather than reading "
